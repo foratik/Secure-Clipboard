@@ -1,6 +1,7 @@
 import sqlite3
 import secrets
 import os
+import json
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -44,14 +45,21 @@ def init_db():
                     password_hash TEXT,
                     expire_at DATETIME,
                     is_one_time BOOLEAN DEFAULT 0,
+                    is_client_encrypted BOOLEAN DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )''')
+
+    columns = [row[1] for row in c.execute("PRAGMA table_info(clips)").fetchall()]
+    if 'is_client_encrypted' not in columns:
+        c.execute('ALTER TABLE clips ADD COLUMN is_client_encrypted BOOLEAN DEFAULT 0')
+
     conn.commit()
     conn.close()
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA journal_mode=WAL')
     return conn
 
 def calculate_expire_time(duration_str):
@@ -74,6 +82,29 @@ def calculate_expire_time(duration_str):
         return now + timedelta(days=30)
     return None
 
+def is_valid_client_payload(payload_text):
+    try:
+        payload = json.loads(payload_text)
+    except (TypeError, json.JSONDecodeError):
+        return False
+
+    required_keys = {'v', 'alg', 'kdf', 'iter', 'salt', 'iv', 'ct'}
+    if not isinstance(payload, dict) or not required_keys.issubset(payload.keys()):
+        return False
+
+    if payload.get('alg') != 'AES-GCM' or payload.get('kdf') != 'PBKDF2':
+        return False
+
+    return True
+
+def parse_db_datetime(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+
 def handle_clip_view(code, password_input=None, is_submit=False):
     conn = get_db_connection()
     clip = conn.execute('SELECT * FROM clips WHERE code = ?', (code,)).fetchone()
@@ -82,11 +113,23 @@ def handle_clip_view(code, password_input=None, is_submit=False):
         conn.close()
         return None, False, 'کد وارد شده معتبر نیست.'
 
-    if clip['expire_at'] and datetime.now() > datetime.strptime(clip['expire_at'], '%Y-%m-%d %H:%M:%S.%f'):
+    expire_at_dt = parse_db_datetime(clip['expire_at'])
+    if expire_at_dt and datetime.now() > expire_at_dt:
         conn.execute('DELETE FROM clips WHERE code = ?', (code,))
         conn.commit()
         conn.close()
         return None, False, 'این کلیپ منقضی شده است.'
+
+    if clip['is_client_encrypted']:
+        payload = clip['content_encrypted']
+
+        conn.close()
+        return {
+            'payload': payload,
+            'code': code,
+            'initial_password': '',
+            'is_one_time': bool(clip['is_one_time'])
+        }, False, None
 
     if clip['password_hash']:
         if is_submit:
@@ -121,22 +164,31 @@ def index():
             password = request.form.get('password')
             duration = request.form.get('duration')
             is_one_time = request.form.get('one_time') == 'on'
+            is_client_encrypted = request.form.get('is_client_encrypted') == '1'
 
             if not content:
                 flash('محتوایی وارد نشده است.', 'error')
                 return redirect(url_for('index'))
 
+            if is_client_encrypted and not is_valid_client_payload(content):
+                flash('فرمت رمزنگاری سمت کاربر معتبر نیست.', 'error')
+                return redirect(url_for('index'))
+
             expire_at = calculate_expire_time(duration)
-            password_hash = generate_password_hash(password) if password else None
-            
-            encrypted_content = cipher_suite.encrypt(content.encode('utf-8'))
+            expire_at_value = expire_at.isoformat(sep=' ') if expire_at else None
+            if is_client_encrypted:
+                password_hash = None
+                encrypted_content = content
+            else:
+                password_hash = generate_password_hash(password) if password else None
+                encrypted_content = cipher_suite.encrypt(content.encode('utf-8'))
             
             code = str(secrets.randbelow(1000000)).zfill(6)
 
             try:
                 conn = get_db_connection()
-                conn.execute('INSERT INTO clips (code, content_encrypted, password_hash, expire_at, is_one_time) VALUES (?, ?, ?, ?, ?)',
-                             (code, encrypted_content, password_hash, expire_at, is_one_time))
+                conn.execute('INSERT INTO clips (code, content_encrypted, password_hash, expire_at, is_one_time, is_client_encrypted) VALUES (?, ?, ?, ?, ?, ?)',
+                             (code, encrypted_content, password_hash, expire_at_value, is_one_time, is_client_encrypted))
                 conn.commit()
                 conn.close()
                 return render_template('index.html', created_code=code)
@@ -147,18 +199,11 @@ def index():
         elif action == 'view':
             active_tab = 'view'
             code = request.form.get('code')
-            password_input = request.form.get('password_view')
-            
-            content, requires_password, error_msg = handle_clip_view(code, password_input, is_submit=True)
-            
-            if error_msg:
-                flash(error_msg, 'error')
-                # return render_template('index.html', active_tab=active_tab)
-                if requires_password:
-                     return render_template('index.html', direct_code=code, requires_password=True)
-                return render_template('index.html')
-            
-            return render_template('index.html', clip_content=content)
+            if not code:
+                flash('کد وارد نشده است.', 'error')
+                return render_template('index.html', active_tab=active_tab)
+
+            return redirect(url_for('view_clip', code=code))
 
     return render_template('index.html', active_tab=active_tab)
 
@@ -172,15 +217,40 @@ def view_clip(code):
         
         if error_msg:
             flash(error_msg, 'error')
-            return render_template('index.html', direct_code=code, requires_password=requires_password)
+            if requires_password:
+                return render_template('index.html', direct_code=code, requires_password=True)
+            return render_template('index.html')
         
         if requires_password:
             return render_template('index.html', direct_code=code, requires_password=True)
+
+        if isinstance(content, dict) and content.get('payload'):
+            return render_template('index.html',
+                                   client_encrypted_payload=content['payload'],
+                                   direct_code=content['code'],
+                                   client_clip_is_one_time=content.get('is_one_time', False),
+                                   initial_password=content.get('initial_password', ''))
         
         return render_template('index.html', clip_content=content)
     except Exception as e:
         flash('خطایی در پردازش درخواست رخ داد.', 'error')
         return redirect(url_for('index'))
+
+@app.route('/consume-client-clip', methods=['POST'])
+def consume_client_clip():
+    code = request.form.get('code')
+    if not code:
+        return {'ok': False}, 400
+
+    conn = get_db_connection()
+    clip = conn.execute('SELECT code, is_client_encrypted, is_one_time FROM clips WHERE code = ?', (code,)).fetchone()
+
+    if clip and clip['is_client_encrypted'] and clip['is_one_time']:
+        conn.execute('DELETE FROM clips WHERE code = ?', (code,))
+        conn.commit()
+
+    conn.close()
+    return {'ok': True}
 
 if __name__ == '__main__':
     init_db()
@@ -189,3 +259,4 @@ if __name__ == '__main__':
         app.run(debug=False, host='0.0.0.0', port=5091, ssl_context=context)
     else:
         app.run(debug=False, host='0.0.0.0', port=5090)
+

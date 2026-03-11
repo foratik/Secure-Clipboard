@@ -202,7 +202,34 @@ input[type="text"], input[type="password"], select {
     background: #e8eaf6;
 }
 
-.code-display {
+.copied-success-text {
+    vertical-align: middle;
+}
+
+.copied-check-icon {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.copied-check-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+}
+@keyframes progress {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+ .code-display {
     font-size: 2.5em;
     letter-spacing: 8px;
     direction: ltr;
@@ -245,22 +272,3 @@ input[type="text"], input[type="password"], select {
     outline: none;
 }
 
-.copied-success-text {
-    vertical-align: middle;
-}
-
-.copied-check-icon {
-    width: 20px;
-    height: 20px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    vertical-align: middle;
-    margin-right: 6px;
-}
-
-.copied-check-icon svg {
-    width: 100%;
-    height: 100%;
-    fill: currentColor;
-}
