@@ -3,15 +3,19 @@ import secrets
 import os
 import json
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from cryptography.fernet import Fernet
 
 app = Flask(__name__)
-app.secret_key = 'u84ibhwjh8h0bnhb45hybw49rb8g3jivmwec,oera;stugeuribgr9'
 
 DB_NAME = "clipboard.db"
 KEY_FILE = "encryption.key"
+APP_SECRET_FILE = "app_secret.key"
+
+RATE_LIMIT_WINDOW_SECONDS = 60
+RATE_LIMIT_MAX_REQUESTS = 40
+RATE_LIMIT_BUCKETS = {}
 
 def to_farsi_filter(text):
     if not text:
@@ -33,7 +37,72 @@ def load_or_generate_key():
             f.write(key)
         return key
 
+def load_or_generate_app_secret():
+    env_secret = os.environ.get('APP_SECRET_KEY')
+    if env_secret:
+        return env_secret
+
+    if os.path.exists(APP_SECRET_FILE):
+        with open(APP_SECRET_FILE, "r", encoding="utf-8") as f:
+            return f.read().strip()
+
+    new_secret = secrets.token_urlsafe(64)
+    with open(APP_SECRET_FILE, "w", encoding="utf-8") as f:
+        f.write(new_secret)
+    return new_secret
+
+app.secret_key = load_or_generate_app_secret()
+
 cipher_suite = Fernet(load_or_generate_key())
+
+def get_csrf_token():
+    token = session.get('_csrf_token')
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session['_csrf_token'] = token
+    return token
+
+app.jinja_env.globals['csrf_token'] = get_csrf_token
+
+def get_client_ip():
+    x_forwarded_for = request.headers.get('X-Forwarded-For', '')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    return request.remote_addr or 'unknown'
+
+def is_rate_limited(scope):
+    now = datetime.now().timestamp()
+    bucket_key = f"{scope}:{get_client_ip()}"
+    bucket = RATE_LIMIT_BUCKETS.get(bucket_key, [])
+    window_start = now - RATE_LIMIT_WINDOW_SECONDS
+    bucket = [t for t in bucket if t >= window_start]
+
+    if len(bucket) >= RATE_LIMIT_MAX_REQUESTS:
+        RATE_LIMIT_BUCKETS[bucket_key] = bucket
+        return True
+
+    bucket.append(now)
+    RATE_LIMIT_BUCKETS[bucket_key] = bucket
+
+    if len(RATE_LIMIT_BUCKETS) > 5000:
+        for key in list(RATE_LIMIT_BUCKETS.keys()):
+            RATE_LIMIT_BUCKETS[key] = [t for t in RATE_LIMIT_BUCKETS[key] if t >= window_start]
+            if not RATE_LIMIT_BUCKETS[key]:
+                del RATE_LIMIT_BUCKETS[key]
+
+    return False
+
+@app.before_request
+def validate_csrf_for_post_requests():
+    if request.method != 'POST':
+        return
+
+    sent_token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
+    session_token = session.get('_csrf_token')
+
+    if not sent_token or not session_token or sent_token != session_token:
+        flash('درخواست نامعتبر است. لطفاً دوباره تلاش کنید.', 'error')
+        return redirect(url_for('index'))
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -157,6 +226,10 @@ def favicon():
 def index():
     active_tab = 'create'
     if request.method == 'POST':
+        if is_rate_limited('post-index'):
+            flash('تعداد درخواست‌ها زیاد است. لطفاً کمی بعد تلاش کنید.', 'error')
+            return redirect(url_for('index'))
+
         action = request.form.get('action')
         
         if action == 'create':
@@ -210,6 +283,10 @@ def index():
 @app.route('/<code>', methods=['GET', 'POST'])
 def view_clip(code):
     try:
+        if request.method == 'POST' and is_rate_limited('post-view-clip'):
+            flash('تعداد درخواست‌ها زیاد است. لطفاً کمی بعد تلاش کنید.', 'error')
+            return redirect(url_for('index'))
+
         is_submit = request.method == 'POST'
         password_input = request.form.get('password_view') if is_submit else None
         
@@ -238,6 +315,9 @@ def view_clip(code):
 
 @app.route('/consume-client-clip', methods=['POST'])
 def consume_client_clip():
+    if is_rate_limited('post-consume-client-clip'):
+        return {'ok': False, 'error': 'rate_limited'}, 429
+
     code = request.form.get('code')
     if not code:
         return {'ok': False}, 400

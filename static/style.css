@@ -256,6 +256,10 @@ input[type="text"], input[type="password"], select {
     direction: ltr;
 }
 
+.view-code-group {
+    margin-top: 10px;
+}
+
 .code-digit {
     width: 45px;
     height: 55px;

@@ -57,6 +57,7 @@
                 <h3>دسترسی محافظت شده</h3>
                 <p>برای مشاهده محتوای کد <strong>{{ direct_code | to_farsi }}</strong> گذرواژه را وارد کنید:</p>
                 <form method="POST" autocomplete="off">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="password" name="password_view" placeholder="گذرواژه را وارد کنید" required autocomplete="off">
                     <button type="submit" class="btn btn-primary">مشاهده</button>
                 </form>
@@ -70,6 +71,7 @@
 
             <div id="create" class="tab-content {% if active_tab == 'create' %}active{% endif %}">
                 <form method="POST" action="{{ url_for('index') }}" id="createForm" autocomplete="off">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="create">
                     <input type="hidden" name="is_client_encrypted" id="isClientEncrypted" value="0">
                     <input type="hidden" name="content-plaintext" id="contentPlaintext" value="">
@@ -116,8 +118,9 @@
 
             <div id="view" class="tab-content {% if active_tab == 'view' %}active{% endif %}">
                 <form method="POST" action="{{ url_for('index') }}" id="viewForm" autocomplete="off">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="view">
-                    <div class="input-group">
+                    <div class="input-group view-code-group">
                         <label>کد ۶ رقمی</label>
                         <div class="code-input-container">
                             <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off">
@@ -129,10 +132,6 @@
                             <input type="hidden" name="code" id="hiddenCode">
                         </div>
                     </div>
-                    <div class="input-group">
-                        <label>گذرواژه</label>
-                        <input type="password" placeholder="در صورت نیاز در مرحله بعد وارد می‌شود" autocomplete="off" disabled>
-                    </div>
                     <button type="submit" class="btn btn-primary">مشاهده متن</button>
                 </form>
             </div>
@@ -140,6 +139,8 @@
     </div>
 
     <script>
+        const csrfToken = {{ csrf_token()|tojson|safe }};
+
         function openTab(tabName) {
             const contents = document.getElementsByClassName('tab-content');
             const btns = document.getElementsByClassName('tab-btn');
@@ -375,7 +376,8 @@
                     fetch(consumeEndpoint, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                            'X-CSRF-Token': csrfToken
                         },
                         body: body.toString()
                     }).finally(() => {

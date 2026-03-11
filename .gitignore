@@ -1,3 +1,4 @@
+app_secret.key
 cert.pem
 clipboard.db
 encryption.key
