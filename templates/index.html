@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>کلیپ بورد امن</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>کلیپ بورد امن</h1>
+            <p>ذخیره و اشتراک‌گذاری موقت متن‌ها با امنیت بالا</p>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% if created_code %}
+            <div class="success-box">
+                <h3>کلیپ شما با موفقیت ایجاد شد!</h3>
+                <p>کد دسترسی شما:</p>
+                <div class="code-display" id="copyCode" onclick="copyToClipboard(this, '{{ created_code }}')">{{ created_code }}</div>
+                <p>لینک مستقیم:</p>
+                <div class="link-display" id="copyLink" onclick="copyToClipboard(this, '{{ request.url_root }}{{ created_code }}')">{{ request.url_root }}{{ created_code }}</div>
+                <p>برای کپی کردن روی کد یا لینک کلیک کنید.</p>
+                <a href="/" class="btn btn-secondary">بازگشت به خانه</a>
+            </div>
+        {% elif clip_content %}
+            <div class="result-box">
+                <h3>محتوای کلیپ:</h3>
+                <textarea readonly>{{ clip_content }}</textarea>
+                <a href="/" class="btn btn-secondary">ایجاد کلیپ جدید</a>
+            </div>
+        {% elif direct_code and requires_password %}
+            <div class="direct-view-box">
+                <h3>دسترسی محافظت شده</h3>
+                <p>برای مشاهده محتوای کد <strong>{{ direct_code | to_farsi }}</strong> گذرواژه را وارد کنید:</p>
+                <form method="POST" autocomplete="off">
+                    <input type="password" name="password_view" placeholder="گذرواژه را وارد کنید" required autocomplete="off">
+                    <button type="submit" class="btn btn-primary">مشاهده</button>
+                </form>
+                <a href="/" class="btn btn-secondary">لغو</a>
+            </div>
+        {% else %}
+            <div class="tabs">
+                <button class="tab-btn {% if active_tab == 'create' %}active{% endif %}" onclick="openTab('create')">ایجاد کلیپ‌بورد</button>
+                <button class="tab-btn {% if active_tab == 'view' %}active{% endif %}" onclick="openTab('view')">مشاهده کلیپ‌بورد</button>
+            </div>
+
+            <div id="create" class="tab-content {% if active_tab == 'create' %}active{% endif %}">
+                <form method="POST" autocomplete="off">
+                    <input type="hidden" name="action" value="create">
+                    <textarea name="content" placeholder="متن خود را اینجا بنویسید..." required autocomplete="off"></textarea>
+                    
+                    <div class="options-grid">
+                        <div class="input-group">
+                            <label>گذرواژه (اختیاری)</label>
+                            <input type="password" name="password" placeholder="****" autocomplete="off">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label>زمان انقضا</label>
+                            <select name="duration" autocomplete="off">
+                                <option value="5m">۵ دقیقه</option>
+                                <option value="10m">۱۰ دقیقه</option>
+                                <option value="30m">۳۰ دقیقه</option>
+                                <option value="1h">۱ ساعت</option>
+                                <option value="12h">۱۲ ساعت</option>
+                                <option value="1d">۱ روز</option>
+                                <option value="1w">۱ هفته</option>
+                                <option value="1M">۱ ماه</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <label>
+                            <input type="checkbox" name="one_time">
+                            یکبار مصرف باشد (بعد از مشاهده حذف شود)
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">ایجاد و دریافت کد</button>
+                </form>
+            </div>
+
+            <div id="view" class="tab-content {% if active_tab == 'view' %}active{% endif %}">
+                <form method="POST" id="viewForm" autocomplete="off">
+                    <input type="hidden" name="action" value="view">
+                    <div class="input-group">
+                        <label>کد ۶ رقمی</label>
+                        <div class="code-input-container">
+                            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off">
+                            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off">
+                            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off">
+                            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off">
+                            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off">
+                            <input type="text" class="code-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off">
+                            <input type="hidden" name="code" id="hiddenCode">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>گذرواژه (اگر دارد)</label>
+                        <input type="password" name="password_view" placeholder="گذرواژه را وارد کنید" autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-primary">مشاهده متن</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function openTab(tabName) {
+            const contents = document.getElementsByClassName('tab-content');
+            const btns = document.getElementsByClassName('tab-btn');
+            
+            for (let content of contents) {
+                content.classList.remove('active');
+            }
+            for (let btn of btns) {
+                btn.classList.remove('active');
+            }
+            
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        const inputs = document.querySelectorAll('.code-digit');
+        inputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                const val = e.target.value;
+                if (!/^\d$/.test(val)) {
+                    e.target.value = '';
+                    return;
+                }
+                if (index < inputs.length - 1) {
+                    inputs[index + 1].focus();
+                }
+                updateHiddenCode();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+            
+            input.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+                const digits = pasteData.replace(/\D/g, '').split('');
+                digits.forEach((digit, i) => {
+                    if (inputs[index + i]) {
+                        inputs[index + i].value = digit;
+                    }
+                });
+                if (inputs[index + digits.length]) {
+                    inputs[index + digits.length].focus();
+                }
+                updateHiddenCode();
+            });
+        });
+
+        function updateHiddenCode() {
+            let code = '';
+            inputs.forEach(input => code += input.value);
+            document.getElementById('hiddenCode').value = code;
+        }
+
+        function copyToClipboard(element, text) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (!element.dataset.originalHtml) {
+                    element.dataset.originalHtml = element.innerHTML;
+                }
+
+                if (element.copyResetTimer) {
+                    clearTimeout(element.copyResetTimer);
+                }
+
+                element.innerHTML = `
+                    <span class="copied-success-text">کپی شد</span>
+                    <span class="copied-check-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"></path>
+                        </svg>
+                    </span>
+                `;
+                element.copyResetTimer = setTimeout(() => {
+                    element.innerHTML = element.dataset.originalHtml;
+                    element.copyResetTimer = null;
+                }, 1000);
+            }).catch(err => {
+                console.error('خطا در کپی: ', err);
+            });
+        }
+    </script>
+</body>
+</html>

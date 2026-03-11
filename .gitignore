@@ -1,0 +1,7 @@
+cert.pem
+clipboard.db
+encryption.key
+key.pem
+openssl.cnf
+__pycache__
+.venv
