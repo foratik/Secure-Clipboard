@@ -1,0 +1,577 @@
+{
+  "info": {
+    "name": "Secure Clipboard API",
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "description": "Complete API collection for the Secure Clipboard Go backend.\n\n**Base URL:** `{{base_url}}`\n\n## Setup\n1. Create an environment and set `base_url` to `http://localhost:8080`\n2. Run **Create Clip (plain)** — the `clip_code` variable is automatically set\n3. Use the other requests with the auto-captured code",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "clip_code",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Liveness + readiness probe. Returns 200 when Postgres and Redis are reachable."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"status\": \"ok\",\n  \"checks\": {\n    \"postgres\": \"ok\",\n    \"redis\": \"ok\"\n  },\n  \"uptime\": \"4h32m10s\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Postgres is ok', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.checks.postgres).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Clips",
+      "item": [
+        {
+          "name": "Create — Plain text",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"این یک متن مخفی است!\",\n  \"duration\": \"1h\",\n  \"is_one_time\": false,\n  \"is_client_encrypted\": false\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips"]
+            },
+            "description": "Creates a plain server-encrypted clip with a 1-hour expiry. The `clip_code` variable is automatically saved for use in subsequent requests."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"code\": \"042817\",\n  \"expire_at\": \"2026-04-11T10:00:00Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Has 6-digit code', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.code).to.match(/^\\d{6}$/);",
+                  "    pm.collectionVariables.set('clip_code', json.code);",
+                  "    console.log('Saved clip_code:', json.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create — With password",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"محتوای محافظت‌شده با رمز\",\n  \"password\": \"s3cr3t!\",\n  \"duration\": \"30m\",\n  \"is_one_time\": false,\n  \"is_client_encrypted\": false\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips"]
+            },
+            "description": "Creates a server-encrypted clip protected by a password. Use `/unlock` to retrieve the content."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"code\": \"193847\",\n  \"expire_at\": \"2026-04-10T10:30:00Z\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.code) pm.collectionVariables.set('clip_code', json.code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create — One-time",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"این کلیپ فقط یک بار قابل مشاهده است\",\n  \"duration\": \"10m\",\n  \"is_one_time\": true,\n  \"is_client_encrypted\": false\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips"]
+            },
+            "description": "Creates a one-time clip. It is permanently deleted after the first successful GET."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.code) pm.collectionVariables.set('clip_code', json.code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create — No expiry",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"این کلیپ منقضی نمی‌شود\",\n  \"is_one_time\": false,\n  \"is_client_encrypted\": false\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips"]
+            },
+            "description": "Omitting `duration` creates a clip that never expires."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('No expire_at field', () => {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.expire_at).to.be.undefined;",
+                  "});",
+                  "const json = pm.response.json();",
+                  "if (json.code) pm.collectionVariables.set('clip_code', json.code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create — Client-encrypted payload",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"{\\\"v\\\":1,\\\"alg\\\":\\\"AES-GCM\\\",\\\"kdf\\\":\\\"PBKDF2\\\",\\\"iter\\\":250000,\\\"salt\\\":\\\"dGVzdHNhbHQxMjM0NQ==\\\",\\\"iv\\\":\\\"dGVzdGl2MTIz\\\",\\\"ct\\\":\\\"dGVzdGNpcGhlcnRleHQ=\\\"}\",\n  \"duration\": \"1d\",\n  \"is_one_time\": true,\n  \"is_client_encrypted\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips"]
+            },
+            "description": "The browser encrypts the content with AES-256-GCM before sending. The server stores the opaque blob verbatim and never sees the plaintext."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.code) pm.collectionVariables.set('clip_code', json.code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Clip",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips/{{clip_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips", "{{clip_code}}"]
+            },
+            "description": "Retrieves a clip by its 6-digit code.\n\n- **Plain clip** → returns `content`\n- **Password-protected** → returns `requires_password: true`\n- **Client-encrypted** → returns `payload` (browser decrypts)"
+          },
+          "response": [
+            {
+              "name": "200 — Plain content",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"code\": \"042817\",\n  \"content\": \"این یک متن مخفی است!\",\n  \"requires_password\": false,\n  \"is_client_encrypted\": false,\n  \"is_one_time\": false,\n  \"expire_at\": \"2026-04-11T10:00:00Z\"\n}"
+            },
+            {
+              "name": "200 — Requires password",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"code\": \"193847\",\n  \"requires_password\": true,\n  \"is_client_encrypted\": false,\n  \"is_one_time\": false,\n  \"expire_at\": \"2026-04-10T10:30:00Z\"\n}"
+            },
+            {
+              "name": "200 — Client-encrypted payload",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"code\": \"571290\",\n  \"payload\": \"{\\\"v\\\":1,\\\"alg\\\":\\\"AES-GCM\\\",...}\",\n  \"requires_password\": false,\n  \"is_client_encrypted\": true,\n  \"is_one_time\": true\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"code\": \"CLIP_NOT_FOUND\",\n  \"message\": \"clip not found\"\n}"
+            },
+            {
+              "name": "410 Gone (expired)",
+              "status": "Gone",
+              "code": 410,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"code\": \"CLIP_EXPIRED\",\n  \"message\": \"this clip has expired\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200, 404 or 410', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404, 410]);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.test('Has code field', () => pm.expect(json.code).to.match(/^\\d{6}$/));",
+                  "    pm.test('Has content or payload or requires_password', () => {",
+                  "        const valid = json.content !== undefined || json.payload !== undefined || json.requires_password === true;",
+                  "        pm.expect(valid).to.be.true;",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unlock Clip (password)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"s3cr3t!\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips/{{clip_code}}/unlock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips", "{{clip_code}}", "unlock"]
+            },
+            "description": "Submits a password for a password-protected clip and returns the decrypted content."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"content\": \"محتوای محافظت‌شده با رمز\"\n}"
+            },
+            {
+              "name": "401 Wrong password",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"code\": \"WRONG_PASSWORD\",\n  \"message\": \"incorrect password\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 or 401', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 401, 404, 410]);",
+                  "});",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Has content', () => {",
+                  "        const json = pm.response.json();",
+                  "        pm.expect(json.content).to.be.a('string').and.not.empty;",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unlock Clip — Wrong password",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"wrong_password\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips/{{clip_code}}/unlock",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips", "{{clip_code}}", "unlock"]
+            },
+            "description": "Verifies that a wrong password returns 401."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('Error code is WRONG_PASSWORD', () => {",
+                  "    pm.expect(pm.response.json().code).to.eql('WRONG_PASSWORD');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consume Clip (one-time client-encrypted)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips/{{clip_code}}/consume",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips", "{{clip_code}}", "consume"]
+            },
+            "description": "Called by the browser after successfully decrypting a one-time client-encrypted clip. Permanently deletes the clip. Idempotent."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [{"key": "Content-Type", "value": "application/json"}],
+              "body": "{\n  \"ok\": true\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok is true', () => {",
+                  "    pm.expect(pm.response.json().ok).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error Cases",
+      "item": [
+        {
+          "name": "Get — Not found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips/000000",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips", "000000"]
+            },
+            "description": "Requests a code that does not exist → 404."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('Error code is CLIP_NOT_FOUND', () => {",
+                  "    pm.expect(pm.response.json().code).to.eql('CLIP_NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create — Empty content",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"\",\n  \"duration\": \"1h\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips"]
+            },
+            "description": "Sending empty content must return 400."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Error code is INVALID_REQUEST', () => {",
+                  "    pm.expect(pm.response.json().code).to.eql('INVALID_REQUEST');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create — Invalid duration",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"test\",\n  \"duration\": \"999y\"\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips"]
+            },
+            "description": "An unsupported duration string must return 400."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create — Invalid client payload",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"not-a-valid-json-payload\",\n  \"is_client_encrypted\": true\n}",
+              "options": {"raw": {"language": "json"}}
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clips",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clips"]
+            },
+            "description": "When `is_client_encrypted=true` the content must be a valid AES-GCM JSON blob."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
