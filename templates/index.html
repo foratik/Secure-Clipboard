@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>کلیپ بورد امن</title>
+    <title>کلیپ بورد موقت</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -11,7 +11,10 @@
 
     <div class="container">
         <header>
-            <h1>کلیپ بورد امن</h1>
+            {% if admin_dashboard_visible %}
+                <a class="admin-link" href="{{ url_for('admin_dashboard') }}">داشبورد مدیریتی</a>
+            {% endif %}
+            <h1>کلیپ بورد موقت</h1>
             <p>ذخیره و اشتراک‌گذاری موقت متن‌ها با امنیت بالا</p>
         </header>
 
@@ -74,13 +77,12 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="create">
                     <input type="hidden" name="is_client_encrypted" id="isClientEncrypted" value="0">
-                    <input type="hidden" name="content-plaintext" id="contentPlaintext" value="">
                     <textarea name="content" placeholder="متن خود را اینجا بنویسید..." required autocomplete="off" id="contentField"></textarea>
                     
                     <div class="options-grid">
                         <div class="input-group">
                             <label>گذرواژه (اختیاری)</label>
-                            <input type="password" name="password" placeholder="اگر می‌خواهید رمز بگذارید" autocomplete="off">
+                            <input type="password" id="password" placeholder="اگر می‌خواهید رمز بگذارید" autocomplete="off">
                         </div>
                         
                         <div class="input-group">
@@ -401,14 +403,13 @@
             createForm.addEventListener('submit', async (event) => {
                 
                 const contentField = document.getElementById('contentField');
-                const passwordField = createForm.querySelector('input[name="password"]');
+                const passwordField = document.getElementById('password');
                 const clientEncryptedFlag = document.getElementById('isClientEncrypted');
                 const submitBtn = document.getElementById('submitBtn');
                 const encryptingIndicator = document.getElementById('encryptingIndicator');
-                const contentPlaintext = document.getElementById('contentPlaintext');
 
 
-                if (!contentField || !passwordField || !clientEncryptedFlag || !contentPlaintext) return;
+                if (!contentField || !passwordField || !clientEncryptedFlag) return;
 
                 if (createForm.dataset.preparedSubmit === '1') {
                     createForm.dataset.preparedSubmit = '0';
@@ -420,26 +421,26 @@
                 const passwordValue = passwordField.value.trim();
 
                 if (!passwordValue) {
+                    // No password: send plaintext content to server
+                    // Server will encrypt it server-side
                     clientEncryptedFlag.value = '0';
-                    contentPlaintext.value = contentField.value;
                     createForm.dataset.preparedSubmit = '1';
                     createForm.submit();
                     return;
                 }
 
                 try {
-                    
+                    // Password provided: encrypt client-side
                     contentField.style.display = 'none';
                     submitBtn.disabled = true;
                     encryptingIndicator.style.display = 'block';
 
                     const payload = await encryptClientSide(contentField.value, passwordValue);
                     
-                    contentPlaintext.value = contentField.value;
+                    // Send only encrypted payload, do NOT send plaintext
                     contentField.value = JSON.stringify(payload);
                     clientEncryptedFlag.value = '1';
                     passwordField.value = '';
-                    
                     
                     createForm.dataset.preparedSubmit = '1';
                     createForm.submit();

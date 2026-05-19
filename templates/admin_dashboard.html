@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد مدیریتی</title>
+    <link rel="preload" href="{{ url_for('static', filename='Vazir-Regular-FD.woff2') }}" as="font" type="font/woff2" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='chart.umd.min.js') }}"></script>
+    <script>
+        // Use project font for charts
+        if (typeof Chart !== 'undefined' && Chart.defaults) {
+            Chart.defaults.font.family = "Vazir, sans-serif";
+            Chart.defaults.color = '#d6e6ff';
+        }
+    </script>
+</head>
+<body class="admin-page">
+    <div class="admin-shell">
+        <header class="admin-topbar">
+            <div class="admin-actions-left">
+                <a href="{{ url_for('index') }}" class="admin-icon-btn" title="بازگشت به سایت">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+                <a href="{{ url_for('admin_logout') }}" class="admin-icon-btn" title="خروج">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 3l-4 4m4-4l4 4M16 3v12"/>
+                    </svg>
+                </a>
+            </div>
+            <div class="admin-topbar-center">
+                <div class="admin-badge">داشبورد مدیریتی</div>
+                <h1>آمار استفاده از Secure Clipboard</h1>
+                <p>نمایش کلی از ساخت pasteها، توزیع ساعتی، و IPهای فعال در بازه انتخاب‌شده.</p>
+            </div>
+        </header>
+
+        <div class="dashboard-layout">
+            <div class="dashboard-top-row">
+                <section class="dashboard-stats-column">
+                    <div class="admin-stats-grid">
+                        <div class="admin-card stat-card">
+                            <span>کل pasteها</span>
+                            <strong>{{ dashboard_data.summary.total_clips | to_farsi }}</strong>
+                        </div>
+                        <div class="admin-card stat-card">
+                            <span>یکبار مصرف</span>
+                            <strong>{{ dashboard_data.summary.one_time_clips | to_farsi }}</strong>
+                        </div>
+                        <div class="admin-card stat-card">
+                            <span>رمزنگاری سمت کاربر</span>
+                            <strong>{{ dashboard_data.summary.client_encrypted_clips | to_farsi }}</strong>
+                        </div>
+                        <div class="admin-card stat-card">
+                            <span>رمزنگاری سمت سرور</span>
+                            <strong>{{ dashboard_data.summary.server_encrypted_clips | to_farsi }}</strong>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="dashboard-main-chart-column admin-card chart-card">
+                    <div class="chart-card-header">
+                        <div>
+                            <h2>ساخت paste در روزهای بازه</h2>
+                            <p>روند کلی فعالیت در بازه انتخاب‌شده.</p>
+                        </div>
+                    </div>
+                    <div class="chart-wrap"><canvas id="dailyChart"></canvas></div>
+                </section>
+            </div>
+
+            <section class="dashboard-hourly-section">
+                <div class="admin-card admin-filter-card dashboard-filter-card">
+                    <form method="GET" action="{{ url_for('admin_dashboard') }}" class="admin-filter-form">
+                        <div class="admin-field">
+                            <label for="start_date">از تاریخ</label>
+                            <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+                        </div>
+                        <div class="admin-field">
+                            <label for="end_date">تا تاریخ</label>
+                            <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+                        </div>
+                        <div class="admin-field admin-field-actions">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary admin-btn-primary">اعمال فیلتر</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="admin-card chart-card dashboard-hourly-chart">
+                    <div class="chart-card-header">
+                        <div>
+                            <h2>توزیع ساعتی</h2>
+                            <p>چه ساعت‌هایی بیشترین ساخت را داشته‌اند.</p>
+                        </div>
+                    </div>
+                    <div class="chart-wrap chart-wrap-wide"><canvas id="hourlyChart"></canvas></div>
+                </div>
+            </section>
+        </div>
+
+        <section class="admin-card table-card dashboard-ip-card">
+            <div class="chart-card-header">
+                <div>
+                    <h2>IPهای برتر</h2>
+                    <p>IPهایی که بیشترین paste را ساخته‌اند.</p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>IP</th>
+                            <th>تعداد</th>
+                            <th>سهم از کل</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in dashboard_data.top_ips %}
+                            <tr>
+                                <td>{{ item.ip_address }}</td>
+                                <td>{{ item.total | to_farsi }}</td>
+                                <td>{{ item.share }}%</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="empty-state">داده‌ای در این بازه ثبت نشده است.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const dashboardData = {{ dashboard_data | tojson }};
+
+        function createLineChart(canvasId, labels, values, labelText, color) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return null;
+
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: labelText,
+                        data: values,
+                        borderColor: color,
+                        backgroundColor: color.replace('1)', '0.18)'),
+                        tension: 0.35,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        pointBackgroundColor: color,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#d6e6ff'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#9bb8e8' },
+                            grid: { color: 'rgba(120, 160, 220, 0.12)' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: '#9bb8e8', precision: 0 },
+                            grid: { color: 'rgba(120, 160, 220, 0.12)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Ensure the project font is loaded before rendering charts so canvas text uses Vazir
+        const drawCharts = () => {
+            createLineChart(
+                'dailyChart',
+                dashboardData.daily.labels,
+                dashboardData.daily.values,
+                'تعداد pasteها',
+                'rgba(73, 146, 255, 1)'
+            );
+
+            createLineChart(
+                'hourlyChart',
+                dashboardData.hourly.labels,
+                dashboardData.hourly.values,
+                'تعداد pasteها',
+                'rgba(77, 201, 255, 1)'
+            );
+        };
+
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(drawCharts).catch(drawCharts);
+        } else {
+            // older browsers: draw immediately
+            drawCharts();
+        }
+    </script>
+</body>
+</html>

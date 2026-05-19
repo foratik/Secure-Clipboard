@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ورود مدیر</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="admin-page">
+    <div class="admin-shell admin-login-shell">
+        <div class="admin-panel admin-login-panel admin-login-panel-centered">
+            <div class="admin-badge" style="margin-left: auto; margin-right: auto; display: inline-flex;">Secure Clipboard</div>
+            <h1 style="text-align: center;">ورود به داشبورد مدیریتی</h1>
+            <p>این بخش فقط برای IPهای مجاز و با احراز هویت صحیح قابل دسترسی است.</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages admin-flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" autocomplete="off" class="admin-login-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label for="username">نام کاربری</label>
+                <input type="text" id="username" name="username" placeholder="نام کاربری" required autocomplete="off">
+                <label for="password">رمز عبور</label>
+                <input type="password" id="password" name="password" placeholder="رمز عبور" required autocomplete="off">
+                <button type="submit" class="btn btn-primary admin-btn-primary">ورود</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
