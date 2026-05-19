@@ -991,3 +991,154 @@ body.admin-page {
     }
 }
 
+/* ===== Public page theme system ===== */
+:root {
+    --public-bg-start: #07111f;
+    --public-bg-end: #0a1630;
+    --public-card-bg: rgba(8, 18, 38, 0.86);
+    --public-card-border: rgba(96, 145, 255, 0.16);
+    --public-text: #e8f1ff;
+    --public-muted: #9eb8df;
+    --public-input-bg: rgba(255, 255, 255, 0.04);
+    --public-input-border: rgba(157, 185, 237, 0.2);
+    --public-tab-border: rgba(157, 185, 237, 0.2);
+    --public-tab-text: #9eb8df;
+    --public-secondary-bg: rgba(255, 255, 255, 0.08);
+    --public-secondary-text: #dceaff;
+    --public-code-bg: rgba(255, 255, 255, 0.05);
+    --public-code-border: rgba(157, 185, 237, 0.25);
+    --public-admin-link-bg: rgba(77, 164, 255, 0.2);
+    --public-admin-link-border: rgba(98, 180, 255, 0.45);
+    --public-admin-link-text: #eef6ff;
+}
+
+html[data-resolved-theme='light'] {
+    --public-bg-start: #dbe9ff;
+    --public-bg-end: #f1f6ff;
+    --public-card-bg: rgba(255, 255, 255, 0.92);
+    --public-card-border: rgba(41, 121, 255, 0.18);
+    --public-text: #1d2a3e;
+    --public-muted: #516b94;
+    --public-input-bg: rgba(255, 255, 255, 0.98);
+    --public-input-border: rgba(72, 116, 189, 0.22);
+    --public-tab-border: rgba(72, 116, 189, 0.22);
+    --public-tab-text: #4a6389;
+    --public-secondary-bg: #e8eefb;
+    --public-secondary-text: #22344f;
+    --public-code-bg: #f4f7ff;
+    --public-code-border: rgba(72, 116, 189, 0.25);
+    --public-admin-link-bg: rgba(41, 121, 255, 0.12);
+    --public-admin-link-border: rgba(41, 121, 255, 0.2);
+    --public-admin-link-text: #2b4e88;
+}
+
+body:not(.admin-page) {
+    background:
+        radial-gradient(circle at top, rgba(33, 98, 232, 0.30), transparent 34%),
+        radial-gradient(circle at 9% 40%, rgba(77, 201, 255, 0.18), transparent 24%),
+        radial-gradient(circle at 88% 22%, rgba(120, 120, 255, 0.16), transparent 26%),
+        radial-gradient(circle at 76% 82%, rgba(73, 146, 255, 0.14), transparent 28%),
+        linear-gradient(180deg, var(--public-bg-start) 0%, var(--public-bg-end) 100%) !important;
+    color: var(--public-text) !important;
+}
+
+body:not(.admin-page) .container {
+    background: var(--public-card-bg) !important;
+    border: 1px solid var(--public-card-border);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(14px);
+}
+
+body:not(.admin-page) header h1,
+body:not(.admin-page) h3,
+body:not(.admin-page) p,
+body:not(.admin-page) label {
+    color: var(--public-text);
+}
+
+body:not(.admin-page) header p,
+body:not(.admin-page) .tab-btn,
+body:not(.admin-page) .flash.error,
+body:not(.admin-page) .copied-success-text {
+    color: var(--public-muted);
+}
+
+body:not(.admin-page) .tabs {
+    border-bottom-color: var(--public-tab-border);
+}
+
+body:not(.admin-page) .tab-btn {
+    color: var(--public-tab-text);
+}
+
+body:not(.admin-page) textarea,
+body:not(.admin-page) input[type="text"],
+body:not(.admin-page) input[type="password"],
+body:not(.admin-page) select,
+body:not(.admin-page) .code-digit {
+    background: var(--public-input-bg);
+    border-color: var(--public-input-border);
+    color: var(--public-text);
+}
+
+body:not(.admin-page) .btn-secondary {
+    background: var(--public-secondary-bg);
+    color: var(--public-secondary-text);
+}
+
+body:not(.admin-page) .code-display,
+body:not(.admin-page) .link-display {
+    background: var(--public-code-bg);
+    border-color: var(--public-code-border);
+}
+
+body:not(.admin-page) .code-display:hover,
+body:not(.admin-page) .link-display:hover {
+    background: color-mix(in srgb, var(--public-code-bg) 75%, #2f78ff 25%);
+}
+
+body:not(.admin-page) .admin-link {
+    background: var(--public-admin-link-bg);
+    border-color: var(--public-admin-link-border);
+    color: var(--public-admin-link-text);
+}
+
+body:not(.admin-page) .admin-link:hover {
+    background: color-mix(in srgb, var(--public-admin-link-bg) 80%, #4dcbff 20%);
+}
+
+.public-top-actions {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 10px;
+}
+
+.theme-toggle-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--public-card-border);
+    background: var(--public-input-bg);
+    color: var(--public-text);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--public-input-bg) 80%, #2f78ff 20%);
+}
+
+.theme-toggle-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
