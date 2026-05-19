@@ -6,3 +6,4 @@ key.pem
 openssl.cnf
 __pycache__
 .venv
+.env
