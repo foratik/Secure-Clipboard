@@ -1154,7 +1154,6 @@ body:not(.admin-page) .admin-link:hover {
     direction: rtl;
 }
 
-/* Dark theme overrides: applies inside `.admin-page` or a `.theme-dark` wrapper */
 .admin-page .code-alert,
 .theme-dark .code-alert,
 body.admin-page .code-alert,
@@ -1164,11 +1163,10 @@ html[data-resolved-theme="dark"] .code-alert,
 :root[data-theme="dark"] .code-alert {
     background: linear-gradient(180deg, rgba(255,69,58,0.06), rgba(0,0,0,0.02));
     color: #fff2f1;
-    border: 1px solid rgba(255,69,58,0.14);
+    border: 1px solid rgba(223, 116, 110, 0.306);
     box-shadow: 0 5px 14px rgba(0,0,0,0.5);
 }
 
-/* Dark theme: flash error (improves visibility for <div class="flash error">) */
 .admin-page .flash.error,
 .theme-dark .flash.error,
 body.admin-page .flash.error,
@@ -1176,9 +1174,9 @@ body.theme-dark .flash.error,
 html[data-theme="dark"] .flash.error,
 html[data-resolved-theme="dark"] .flash.error,
 :root[data-theme="dark"] .flash.error {
-    background: linear-gradient(180deg, rgba(198,40,40,0.06), rgba(0,0,0,0.03));
+    background: linear-gradient(180deg, rgba(232, 108, 108, 0.272), rgba(188, 83, 83, 0.24));
     color: #fff3f3;
-    border: 1px solid rgba(198,40,40,0.18);
+    border: 1px solid rgba(223, 94, 94, 0.372);
     box-shadow: 0 5px 14px rgba(0,0,0,0.52);
 }
 
